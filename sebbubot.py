@@ -116,6 +116,9 @@ def runloop(socket):
 						while (i < len(response)):
 							adminlist.pop(response[i])
 
+				elif (response[3] == ":++"):
+					biercounter += 1
+
 				# TODO
 				#
 				# Vitusti conffeja adminille
@@ -149,7 +152,10 @@ def runloop(socket):
 				pattern = re.compile("^:(http*://*|www.*|pornhub.com*)$")
 				if (pattern.match(response[3])):
 					socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", "Ha, gayyyyy!").encode('utf-8'))
-		
+			
+			if (response[3] == ":!bierfeed"):
+					socket.send("PRIVMSG {:s} :{:s}\r\n".format("otittoimarit", str(biercounter)).encode('utf-8'))
+
 		except KeyboardInterrupt:
 			print("\nGoodbye")
 			return None
@@ -179,8 +185,8 @@ if __name__ == "__main__":
 	clientSocket.send("USER {:s} {:s} {:s} :{:s}\r\n".format(username, hostname, servername, realname).encode('utf-8'))
 	clientSocket.send("NICK {:s}\n".format(nick).encode('utf-8'))
 
-	#clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat"])
-	clientSocket = joinChannel(clientSocket, ["#sebbutest"])
+	clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat", "#otittoimarit"])
+	#clientSocket = joinChannel(clientSocket, ["#sebbutest"])
 
 	runloop(clientSocket)
 
