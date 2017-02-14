@@ -134,7 +134,7 @@ def runloop(socket):
                         faggotlist.append(response[i])
                         i += 1
 
-                 elif (response[3] == ":!rmfaggot"):
+                elif (response[3] == ":!rmfaggot"):
                     if (response[4].isDigit()):
                         faggotlist.pop(int(response[4]))
                     else:
