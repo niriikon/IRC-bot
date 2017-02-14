@@ -6,8 +6,8 @@ from urllib.request import urlopen
 import configparser
 import re
 
-adminlist = ["mirv@otitsun.oulu.fi"]
-operatorlist = ["vinvin@otitsun.oulu.fi"]
+adminlist = ["mirv@otitsun.oulu.fi", "vinvin@otitsun.oulu.fi"]
+operatorlist = ["glukoosi@glukoosi.com", "piipari@otitsun.oulu.fi", "~kurre@kumikurre.com", "matti@otitsun.oulu.fi"]
 faggotlist = ["jsloth@otitsun.oulu.fi"]
 default_url = ""
 time = 0
@@ -128,6 +128,20 @@ def runloop(socket):
                         while (i < len(response)):
                             adminlist.pop(response[i])
 
+                elif (response[3] == ":!addfaggot"):
+                    i = 4
+                    while (i < len(response)):
+                        faggotlist.append(response[i])
+                        i += 1
+
+                 elif (response[3] == ":!rmfaggot"):
+                    if (response[4].isDigit()):
+                        faggotlist.pop(int(response[4]))
+                    else:
+                        i = 4
+                        while (i < len(response)):
+                            faggotlist.pop(response[i])
+
                 # TODO
                 #
                 # Vitusti conffeja adminille
@@ -163,9 +177,8 @@ def runloop(socket):
                     socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", "Ha, gayyyyy!").encode('utf-8'))
             
             pattern = re.compile(".*talo.*")
-            print("just_nick == fonillius1: {:b}".format(just_nick == ":fonillius1"))
-            print(len(response))
-            print("pattern.match(message): {:s}".format(pattern.match(message)))
+            # print("just_nick == fonillius1: {:b}".format(just_nick == ":fonillius1"))
+            # print("pattern.match(message): {:s}".format(pattern.match(message)))
             if (just_nick == ":fonillius1" and pattern.match(message)):
                 socket.send("PRIVMSG {:s} :{:s}\r\n".format("#oty", "yksityistilaisuus").encode('utf-8'))
 
