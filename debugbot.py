@@ -18,31 +18,32 @@ def readConfig():
     config = configparser.ConfigParser()
     config.read("config.ini")
 
-    parse = config["USERS"]["Adminlist"]
+    parse = config['USERS']['Adminlist']
     adminlist = parse.split(',')
-    parse = config["USERS"]["Operatorlist"]
+    parse = config['USERS']['Operatorlist']
     operatorlist = parse.split(',')
-    parse = config["USERS"]["Faggotlist"]
+    parse = config['USERS']['Faggotlist']
     faggotlist = parse.split(',')
 
-    default_url = config["SETTINGS"]["url"]
-    time = config["SETTINGS"]["time"]
-    delay = config["SETTINGS"]["delay"]
+    default_url = config['SETTINGS']['url']
+    time = config['SETTINGS']['time']
+    delay = config['SETTINGS']['delay']
 
 def writeConfig():
     config = configparser.ConfigParser()
-    config["USERS"] = {}
-    config["USERS"]["Adminlist"] = parseList(adminlist)
-    config["USERS"]["Operatorlist"] = parseList(operatorlist)
-    config["USERS"]["Faggotlist"] = parseList(faggotlist)
+    config['USERS'] = {
+        'Adminlist': parseList(adminlist),
+        'Operatorlist': parseList(operatorlist),
+        'Faggotlist': parseList(faggotlist)}
 
-    config["SETTINGS"] = {}
-    config["SETTINGS"]["url"] = default_url
-    config["SETTINGS"]["time"] = time
-    config["SETTINGS"]["delay"] = delay
+    config['SETTINGS'] = {
+        'url': default_url,
+        'time': time,
+        'delay': delay}
 
-    with open("config.ini", 'w') as configfile:
+    with open('config.ini', 'w') as configfile:
         config.write(configfile)
+    configfile.close()
 
 def parseList(list, i=0):
     list_as_string = ""
@@ -97,9 +98,6 @@ def runloop(socket):
                 user_level = 0
                 isFaggot = 0
 
-            print(user_level)
-            print(isFaggot)
-
             print("just_nick: {:s}".format(user[0]))
 
             if (user_level >= 2):
@@ -114,6 +112,7 @@ def runloop(socket):
                     while (i < len(response)):
                         operatorlist.append(response[i])
                         i += 1
+                writeConfig()
 
                 elif (response[3] == ":!addadmin"):
                     i = 4
@@ -183,7 +182,8 @@ def runloop(socket):
 
                 elif (response[3] == ":!linkplz"):
                     url = pasteLink()
-                    socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", url).encode('utf-8'))
+                    socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", url).encode('utf-8'))
+                    #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", url).encode('utf-8'))
 
             if (isFaggot):
                 #homohommat
@@ -191,14 +191,16 @@ def runloop(socket):
                 pattern = re.compile("(.*http.://.*)|(.*www[.].*)|(.*pornhub[.]com.*)")
                 print(pattern.match(message))
                 if (pattern.match(message)):
-                    socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", "Ha, gayyyyy!").encode('utf-8'))
+                    socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", "Ha, gayyyyy!").encode('utf-8'))
+                    #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", "Ha, gayyyyy!").encode('utf-8'))
                     print("Sent messsage to server")
             
             pattern = re.compile(".*talo.*")
             # print("just_nick == fonillius1: {:b}".format(just_nick == ":fonillius1"))
             # print("pattern.match(message): {:s}".format(pattern.match(message)))
             if (just_nick == ":fonillius1" and pattern.match(message)):
-                socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", "yksityistilaisuus").encode('utf-8'))
+                socket.send("PRIVMSG {:s} :{:s}\r\n".format("#oty", "yksityistilaisuus").encode('utf-8'))
+                #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", "yksityistilaisuus").encode('utf-8'))
 
             #muut hommat
             if ("PING" in response):
@@ -208,18 +210,26 @@ def runloop(socket):
             print("\nGoodbye")
             return None
 
-        #except:
-        #   pass
+        except:
+           pass
 
 
 if __name__ == "__main__":
+    """
     IPaddress = "irc.oulu.fi"
     portNo = 6667
+    nick = "BOTSebbu"
+    username = "BOTSebbu"
+    realname = "Pornon ystaevae"
+    hostname = "IRC"
+    servername = "IRCnet"
+    """
     nick = "TestSebbu"
     username = "TestSebbu"
     realname = "Debuggaamisen ystaevae"
     hostname = "IRC"
     servername = "IRCnet"
+    
 
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     clientSocket.connect((IPaddress, portNo))
@@ -231,6 +241,11 @@ if __name__ == "__main__":
 
     #clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat", "#oty"])
     clientSocket = joinChannel(clientSocket, ["#sebbutest", "#otit.bottest"])
+
+    try:
+        readConfig()
+    except:
+        pass
 
     runloop(clientSocket)
 
