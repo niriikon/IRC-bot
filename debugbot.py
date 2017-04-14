@@ -5,6 +5,7 @@ from urllib.request import Request
 from urllib.request import urlopen
 import configparser
 import re
+from datetime import datetime, timedelta
 
 adminlist = ["mirv@otitsun.oulu.fi", "vinvin@otitsun.oulu.fi"]
 operatorlist = ["glukoosi@glukoosi.com", "piipari@otitsun.oulu.fi", "~kurre@kumikurre.com", "matti@otitsun.oulu.fi"]
@@ -13,33 +14,35 @@ default_url = ""
 time = 0
 delay = 24
 isFaggot = 0
+wappu_tulee = datetime(2017, 4, 20, 18, 0, 0)
+wapu_lopu = datetime(2017, 5, 2)
 
 def readConfig():
     config = configparser.ConfigParser()
     config.read("config.ini")
 
-    parse = config['USERS']['Adminlist']
+    parse = config["USERS"]["Adminlist"]
     adminlist = parse.split(',')
-    parse = config['USERS']['Operatorlist']
+    parse = config["USERS"]["Operatorlist"]
     operatorlist = parse.split(',')
-    parse = config['USERS']['Faggotlist']
+    parse = config["USERS"]["Faggotlist"]
     faggotlist = parse.split(',')
 
-    default_url = config['SETTINGS']['url']
-    time = config['SETTINGS']['time']
-    delay = config['SETTINGS']['delay']
+    default_url = config["SETTINGS"]["url"]
+    time = config["SETTINGS"]["time"]
+    delay = config["SETTINGS"]["delay"]
 
 def writeConfig():
     config = configparser.ConfigParser()
-    config['USERS'] = {
-        'Adminlist': parseList(adminlist),
-        'Operatorlist': parseList(operatorlist),
-        'Faggotlist': parseList(faggotlist)}
+    config["USERS"] = {
+        "Adminlist": parseList(adminlist),
+        "Operatorlist": parseList(operatorlist),
+        "Faggotlist": parseList(faggotlist)}
 
-    config['SETTINGS'] = {
-        'url': default_url,
-        'time': time,
-        'delay': delay}
+    config["SETTINGS"] = {
+        "url": default_url,
+        "time": time,
+        "delay": delay}
 
     with open('config.ini', 'w') as configfile:
         config.write(configfile)
@@ -79,6 +82,25 @@ def pasteLink(url="http://www.pornhub.com/video/random"):
     redirect_url = res.geturl()
     return redirect_url
 
+def getWappu(time_comp=datetime.now()):
+    if (wappu_tulee > time_comp):
+        #wappuun aikaa
+        time_diff = wappu_tulee - time_comp
+        hours, remainer = divmod(time_diff.seconds, 3600)
+        minutes, seconds = divmod(remainer, 60)
+        wappu = "Wappuun jäljellä {0}d {1}h {2}m {3}.{4}s!".format(time_diff.days, hours, minutes, seconds, time_diff.microseconds)
+        return wappu
+    else:
+        if (wapu_lopu > time_comp):
+            # wappua jäljellä
+            time_diff = wapu_lopu - time_comp
+            hours, remainer = divmod(time_diff.seconds, 3600)
+            minutes, seconds = divmod(remainer, 60)
+            wappu = "Wappua jäljellä {0}d {1}h {2}m {3}.{4}s!".format(time_diff.days, hours, minutes, seconds, time_diff.microseconds)
+            return wappu
+        else:
+            return "Wapu ei lopu"
+
 def runloop(socket):
     while True:
         try:
@@ -91,7 +113,6 @@ def runloop(socket):
             print("{}\n".format(response))
 
             user = response[0].split('!')
-            just_nick = user[0]
             if (len(user) >= 2):
                 user_level, isFaggot = getLevel(user[1])
             else:
@@ -112,7 +133,7 @@ def runloop(socket):
                     while (i < len(response)):
                         operatorlist.append(response[i])
                         i += 1
-                writeConfig()
+                #writeConfig()
 
                 elif (response[3] == ":!addadmin"):
                     i = 4
@@ -169,24 +190,29 @@ def runloop(socket):
                 #set_link
                 #lotd -CHECK
                 if (response[3] == ":!time"):
-                    #set_time
                     setTime(response[4])
 
                 elif (response[3] == ":!freq"):
-                    #set_frequency
                     setfreq(response[4])
 
                 elif (response[3] == ":!setlink"):
-                    #set_link
                     setLink(response[4])
 
                 elif (response[3] == ":!linkplz"):
-                    url = pasteLink()
+                    if (response[2] == username):
+                        url = "Requested by {:s}: {:s}".format(user[0].lstrip(':'), pasteLink())
+                    else:
+                        url = pasteLink()
                     socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", url).encode('utf-8'))
                     #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", url).encode('utf-8'))
 
+                elif (response[3] == ":!wappu"):
+                    socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu()).encode('utf-8'))
+
+                elif (response[3] == ":!testwappu"):
+                    socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu(datetime(2017, 4, 22, 18, 0, 15))).encode('utf-8'))
+
             if (isFaggot):
-                #homohommat
                 print("homohommat")
                 pattern = re.compile("(.*http.://.*)|(.*www[.].*)|(.*pornhub[.]com.*)")
                 print(pattern.match(message))
@@ -196,9 +222,9 @@ def runloop(socket):
                     print("Sent messsage to server")
             
             pattern = re.compile(".*talo.*")
-            # print("just_nick == fonillius1: {:b}".format(just_nick == ":fonillius1"))
+            # print("user[0] == fonillius1: {:b}".format(user[0] == ":fonillius1"))
             # print("pattern.match(message): {:s}".format(pattern.match(message)))
-            if (just_nick == ":fonillius1" and pattern.match(message)):
+            if (user[0] == ":fonillius1" and pattern.match(message)):
                 socket.send("PRIVMSG {:s} :{:s}\r\n".format("#oty", "yksityistilaisuus").encode('utf-8'))
                 #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", "yksityistilaisuus").encode('utf-8'))
 
@@ -215,21 +241,25 @@ def runloop(socket):
 
 
 if __name__ == "__main__":
-    """
+    
     IPaddress = "irc.oulu.fi"
     portNo = 6667
+
+    
     nick = "BOTSebbu"
     username = "BOTSebbu"
     realname = "Pornon ystaevae"
     hostname = "IRC"
     servername = "IRCnet"
+
     """
+
     nick = "TestSebbu"
     username = "TestSebbu"
     realname = "Debuggaamisen ystaevae"
     hostname = "IRC"
     servername = "IRCnet"
-    
+    """
 
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     clientSocket.connect((IPaddress, portNo))
@@ -239,8 +269,8 @@ if __name__ == "__main__":
     clientSocket.send("USER {:s} {:s} {:s} :{:s}\r\n".format(username, hostname, servername, realname).encode('utf-8'))
     clientSocket.send("NICK {:s}\n".format(nick).encode('utf-8'))
 
-    #clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat", "#oty"])
-    clientSocket = joinChannel(clientSocket, ["#sebbutest", "#otit.bottest"])
+    clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat"])
+    #clientSocket = joinChannel(clientSocket, ["#sebbutest", "#otit.bottest"])
 
     try:
         readConfig()

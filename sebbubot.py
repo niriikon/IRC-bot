@@ -5,6 +5,7 @@ from urllib.request import Request
 from urllib.request import urlopen
 import configparser
 import re
+from datetime import datetime, timedelta
 
 adminlist = ["mirv@otitsun.oulu.fi", "vinvin@otitsun.oulu.fi"]
 operatorlist = ["glukoosi@glukoosi.com", "piipari@otitsun.oulu.fi", "~kurre@kumikurre.com", "matti@otitsun.oulu.fi"]
@@ -13,6 +14,8 @@ default_url = ""
 time = 0
 delay = 24
 isFaggot = 0
+wappu_tulee = datetime(2017, 4, 20, 18, 0, 0)
+wapu_lopu = datetime(2017, 5, 2)
 
 def readConfig():
     config = configparser.ConfigParser()
@@ -78,6 +81,25 @@ def pasteLink(url="http://www.pornhub.com/video/random"):
     res = urlopen(req)
     redirect_url = res.geturl()
     return redirect_url
+
+def getWappu(time_comp=datetime.now()):
+    if (wappu_tulee > time_comp):
+        #wappuun aikaa
+        time_diff = wappu_tulee - time_comp
+        hours, remainer = divmod(time_diff.seconds, 3600)
+        minutes, seconds = divmod(remainer, 60)
+        wappu = "Wappuun jäljellä {0}d {1}h {2}m {3}.{4}s!".format(time_diff.days, hours, minutes, seconds, time_diff.microseconds)
+        return wappu
+    else:
+        if (wapu_lopu > time_comp):
+            # wappua jäljellä
+            time_diff = wapu_lopu - time_comp
+            hours, remainer = divmod(time_diff.seconds, 3600)
+            minutes, seconds = divmod(remainer, 60)
+            wappu = "Wappua jäljellä {0}d {1}h {2}m {3}.{4}s!".format(time_diff.days, hours, minutes, seconds, time_diff.microseconds)
+            return wappu
+        else:
+            return "Wapu ei lopu"
 
 def runloop(socket):
     while True:
@@ -168,15 +190,12 @@ def runloop(socket):
                 #set_link
                 #lotd -CHECK
                 if (response[3] == ":!time"):
-                    #set_time
                     setTime(response[4])
 
                 elif (response[3] == ":!freq"):
-                    #set_frequency
                     setfreq(response[4])
 
                 elif (response[3] == ":!setlink"):
-                    #set_link
                     setLink(response[4])
 
                 elif (response[3] == ":!linkplz"):
@@ -187,8 +206,13 @@ def runloop(socket):
                     socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", url).encode('utf-8'))
                     #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", url).encode('utf-8'))
 
+                elif (response[3] == ":!wappu"):
+                    socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu()).encode('utf-8'))
+
+                elif (response[3] == ":!testwappu"):
+                    socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu(datetime(2017, 4, 22, 18, 0, 15))).encode('utf-8'))
+
             if (isFaggot):
-                #homohommat
                 print("homohommat")
                 pattern = re.compile("(.*http.://.*)|(.*www[.].*)|(.*pornhub[.]com.*)")
                 print(pattern.match(message))
@@ -217,8 +241,11 @@ def runloop(socket):
 
 
 if __name__ == "__main__":
+    
     IPaddress = "irc.oulu.fi"
     portNo = 6667
+
+    
     nick = "BOTSebbu"
     username = "BOTSebbu"
     realname = "Pornon ystaevae"
@@ -226,6 +253,7 @@ if __name__ == "__main__":
     servername = "IRCnet"
 
     """
+
     nick = "TestSebbu"
     username = "TestSebbu"
     realname = "Debuggaamisen ystaevae"
