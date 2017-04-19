@@ -231,8 +231,8 @@ def runloop(socket):
                         url = "Requested by {:s}: {:s}".format(user[0].lstrip(':'), pasteLink(default_url))
                     else:
                         url = pasteLink(default_url)
-                    #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", url).encode('utf-8'))
-                    socket.send("PRIVMSG {:s} :{:s}\r\n".format("#sebbutest", url).encode('utf-8'))
+                    socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", url).encode('utf-8'))
+                    #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#sebbutest", url).encode('utf-8'))
 
                 elif (response[3] == ":!wappu"):
                     socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu()).encode('utf-8'))
