@@ -257,8 +257,11 @@ def runloop(socket):
                     socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", url).encode('utf-8'))
                     #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#sebbutest", url).encode('utf-8'))
 
+            #muut hommat
+            if ("PING" in response):
+                socket.send("PONG {:s}\r\n".format(response[1]).encode('utf-8'))
 
-            if (response[3] == ":!wappu"):
+            elif (response[3] == ":!wappu"):
                 socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu()).encode('utf-8'))
                 if (user[1] in wapputimes):
                     wappuoutput = getUserWappu(user[1])
@@ -318,9 +321,6 @@ def runloop(socket):
                 socket.send("PRIVMSG {:s} :{:s}\r\n".format("#oty", "yksityistilaisuus").encode('utf-8'))
                 #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#otit.bottest", "yksityistilaisuus").encode('utf-8'))
 
-            #muut hommat
-            if ("PING" in response):
-                socket.send("PONG {:s}\r\n".format(response[1]).encode('utf-8'))
 
         except KeyboardInterrupt:
             print("\nGoodbye")
