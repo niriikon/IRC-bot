@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 adminlist = ["mirv@otitsun.oulu.fi", "sebu@sebbu.net"]
 operatorlist = ["vinvin@otitsun.oulu.fi"]
 faggotlist = ["jsloth@otitsun.oulu.fi", "sebu@sebbu.net"]
+wapputimes = {}
 default_url = ""
 delay = 24
 wappu_tulee = datetime(2017, 5, 1, 0, 0, 0)
@@ -19,6 +20,7 @@ def readConfig():
     global adminlist
     global operatorlist
     global faggotlist
+    global wapputimes
     global default_url
     global delay
     global wappu_tulee
@@ -38,6 +40,8 @@ def readConfig():
     wappulist = config.get('SETTINGS', 'Wappu').split(',')
     wappu_tulee = datetime(*map(int, wappulist))
 
+    wapputimes = config._sections['WAPPUTIMES']
+
 def writeConfig():
     config = configparser.ConfigParser()
     config.add_section('USERS')
@@ -50,6 +54,10 @@ def writeConfig():
     config.set('SETTINGS', 'Delay', str(delay))
     config.set('SETTINGS', 'Wappu',
         "{0},{1},{2},{3},{4},{5}".format(wappu_tulee.year, wappu_tulee.month, wappu_tulee.day, wappu_tulee.hour, wappu_tulee.minute, wappu_tulee.second))
+
+    config.add_section('WAPPUTIMES')
+    for key in wapputimes:
+        config.set('WAPPUTIMES', key, wapputimes[key])
 
     with open('botconfig.ini', 'w') as configfile:
         config.write(configfile)
@@ -110,10 +118,25 @@ def getWappu(time_comp=""):
         else:
             return "Wapu ei lopu"
 
+def getUserWappu(user):
+    wappustring = wapputimes[user].split(',')
+    wappu_begin = datetime(int(wappustring[0]), int(wappustring[1]), int(wappustring[2]), int(wappustring[3]), int(wappustring[4]), int(wappustring[5]))
+    time_comp = datetime.now()
+    if (wappu_begin < time_comp):
+        #wappua mennyt
+        time_diff = time_comp - wappu_begin
+        hours, remainer = divmod(time_diff.seconds, 3600)
+        minutes, seconds = divmod(remainer, 60)
+        wappu = "{0}d {1}h {2}m {3}.{4}s!".format(time_diff.days, hours, minutes, seconds, time_diff.microseconds)
+        return wappu
+    else:
+        return None
+
 def runloop(socket):
     global adminlist
     global operatorlist
     global faggotlist
+    global wapputimes
     global default_url
     global delay
     global wappu_tulee
@@ -204,7 +227,7 @@ def runloop(socket):
                     writeConfig()
                     print(default_url)
 
-                elif (response[3] == ":!setwappu"):
+                elif (response[3] == ":!teekkariwappu"):
                     wappulist = response[4].split(',') #2017,4,20,18,0,0
                     wappu_tulee = datetime(*map(int, wappulist))
                     writeConfig()
@@ -234,11 +257,50 @@ def runloop(socket):
                     socket.send("PRIVMSG {:s} :{:s}\r\n".format("#pornonystavat", url).encode('utf-8'))
                     #socket.send("PRIVMSG {:s} :{:s}\r\n".format("#sebbutest", url).encode('utf-8'))
 
-                elif (response[3] == ":!wappu"):
-                    socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu()).encode('utf-8'))
 
-                elif (response[3] == ":!testwappu"):
-                    socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu(datetime(2017, 4, 22, 18, 0, 15))).encode('utf-8'))
+            if (response[3] == ":!wappu"):
+                socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getWappu()).encode('utf-8'))
+                if (user[1] in wapputimes):
+                    wappuoutput = getUserWappu(user[1])
+                    if (wappuoutput != None):
+                        wappuoutput = "{:s}:n Wappua on kulunut {:s}".format(user[0].lstrip(':'), wappuoutput)
+                        socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], wappuoutput).encode('utf-8'))
+                    else:
+                        wappuoutput = "{:s}:n Wappu ei ole vielä alkanut.".format(user[0].lstrip(':'))
+                        socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], wappuoutput).encode('utf-8'))
+
+            elif (response[3] == ":!setwappu"):
+                if (len(response) > 4):
+                    pattern = re.compile("([0-9]{1,2}[.]){2}[0-9]{4}")
+                    pattern2 = re.compile("([0-9]{2}:){2}[0-9]{2}")
+                    print(pattern.match(response[4]))
+                    if (len(response) > 5):
+                        print(pattern2.match(response[5]))
+                        if (pattern2.match(response[5])):
+                            wapputime = response[5].split(':')
+                            wapputime = [int(wapputime[0]), int(wapputime[1]), int(wapputime[2])]
+                        else:
+                            wapputime = [0, 0, 0]
+                    else:
+                        wapputime = [0, 0, 0]
+
+                    if (pattern.match(response[4])):
+                        wappudate = response[4].split('.')
+                        wappudate = [int(wappudate[0]), int(wappudate[1]), int(wappudate[2])]
+                        outputdict = "{:d},{:d},{:d},{:d},{:d},{:d}".format(wappudate[2], wappudate[1], wappudate[0], wapputime[0], wapputime[1], wapputime[2])
+                        wapputimes[user[1]] = outputdict
+                        outputstring = ":n Wappu alkoi{:d}.{:d}.{:d} {:d}:{:d}:{:d}".format(wappudate[0], wappudate[1], wappudate[2], wapputime[0], wapputime[1], wapputime[2])
+                        socket.send("PRIVMSG {:s} :{:s}{:s}\r\n".format(response[2], user[0].lstrip(':'), outputstring).encode('utf-8'))
+                        writeConfig()
+                
+                else:
+                    wappudate = datetime.now()
+                    wappuoutput = "{0},{1},{2},{3},{4},{5}".format(wappudate.year, wappudate.month, wappudate.day, wappudate.hour, wappudate.minute, wappudate.second)
+                    wapputimes[user[1]] = wappuoutput
+                    outputstring = ":n Wappu alkoi{:d}.{:d}.{:d} {:d}:{:d}:{:d}".format(wappudate[0], wappudate[1], wappudate[2], wapputime[0], wapputime[1], wapputime[2])
+                    socket.send("PRIVMSG {:s} :{:s}{:s}\r\n".format(response[2], user[0], outputstring).encode('utf-8'))
+                    writeConfig()
+
 
             if (isFaggot):
                 print("homohommat")
@@ -298,7 +360,7 @@ if __name__ == "__main__":
     clientSocket.send("USER {:s} {:s} {:s} :{:s}\r\n".format(username, hostname, servername, realname).encode('utf-8'))
     clientSocket.send("NICK {:s}\n".format(nick).encode('utf-8'))
 
-    clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat"])
+    clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat", "#otit.2016"])
     #clientSocket = joinChannel(clientSocket, ["#sebbutest"])
 
     """
