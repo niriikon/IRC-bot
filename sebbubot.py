@@ -15,6 +15,7 @@ default_url = ""
 delay = 24
 wappu_tulee = datetime(2017, 5, 1, 0, 0, 0)
 wapu_lopu = datetime(2017, 5, 2)
+juhannus_tulee = datetime(2017, 6, 23, 18, 0, 0)
 
 def readConfig():
     global adminlist
@@ -24,6 +25,7 @@ def readConfig():
     global default_url
     global delay
     global wappu_tulee
+    global juhannus_tulee
 
     config = configparser.ConfigParser()
     config.read('botconfig.ini')
@@ -39,6 +41,8 @@ def readConfig():
     delay = int(config.get('SETTINGS', 'Delay'))
     wappulist = config.get('SETTINGS', 'Wappu').split(',')
     wappu_tulee = datetime(*map(int, wappulist))
+    juhannuslist = config.get('SETTINGS', 'Juhannus').split(',')
+    juhannus_tulee = datetime(*map(int, juhannuslist))
 
     wapputimes = config._sections['WAPPUTIMES']
 
@@ -54,6 +58,8 @@ def writeConfig():
     config.set('SETTINGS', 'Delay', str(delay))
     config.set('SETTINGS', 'Wappu',
         "{0},{1},{2},{3},{4},{5}".format(wappu_tulee.year, wappu_tulee.month, wappu_tulee.day, wappu_tulee.hour, wappu_tulee.minute, wappu_tulee.second))
+    config.set('SETTINGS', 'Juhannus',
+        "{0},{1},{2},{3},{4},{5}".format(juhannus_tulee.year, juhannus_tulee.month, juhannus_tulee.day, juhannus_tulee.hour, juhannus_tulee.minute, juhannus_tulee.second))
 
     config.add_section('WAPPUTIMES')
     for key in wapputimes:
@@ -132,6 +138,29 @@ def getUserWappu(user):
     else:
         return None
 
+def getJuhannus(time_comp=""):
+    if (time_comp == ""):
+        time_comp = datetime.now()
+    if (juhannus_tulee > time_comp):
+        #jussiin aikaa
+        time_diff = juhannus_tulee - time_comp
+        hours, remainer = divmod(time_diff.seconds, 3600)
+        minutes, seconds = divmod(remainer, 60)
+        juhannus = "Juhannukseen jäljellä {0}d {1}h {2}m {3}.{4}s!".format(time_diff.days, hours, minutes, seconds, time_diff.microseconds)
+        return juhannus
+    """
+    else:
+        if (juhannus_lopu > time_comp):
+            # wappua jäljellä
+            time_diff = wapu_lopu - time_comp
+            hours, remainer = divmod(time_diff.seconds, 3600)
+            minutes, seconds = divmod(remainer, 60)
+            wappu = "Wappua jäljellä {0}d {1}h {2}m {3}.{4}s!".format(time_diff.days, hours, minutes, seconds, time_diff.microseconds)
+            return wappu
+        else:
+            return "Wapu ei lopu"
+    """
+
 def runloop(socket):
     global adminlist
     global operatorlist
@@ -140,6 +169,7 @@ def runloop(socket):
     global default_url
     global delay
     global wappu_tulee
+    global juhannus_tulee
 
     while True:
         try:
@@ -232,6 +262,11 @@ def runloop(socket):
                     wappu_tulee = datetime(*map(int, wappulist))
                     writeConfig()
 
+                elif (response[3] == ":!setjussi"):
+                    juhannuslist = response[4].split(',')
+                    juhannus_tulee = datetime(*map(int, juhannuslist))
+                    writeConfig()
+
                 # TODO
                 #
                 # Vitusti conffeja adminille
@@ -304,6 +339,8 @@ def runloop(socket):
                     socket.send("PRIVMSG {:s} :{:s}{:s}\r\n".format(response[2], user[0], outputstring).encode('utf-8'))
                     writeConfig()
 
+            elif (response[3] == ":!juhannus"):
+                socket.send("PRIVMSG {:s} :{:s}\r\n".format(response[2], getJuhannus()).encode('utf-8'))
 
             if (isFaggot):
                 print("homohommat")
@@ -360,7 +397,7 @@ if __name__ == "__main__":
     clientSocket.send("USER {:s} {:s} {:s} :{:s}\r\n".format(username, hostname, servername, realname).encode('utf-8'))
     clientSocket.send("NICK {:s}\n".format(nick).encode('utf-8'))
 
-    clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat", "#otit.2016"])
+    clientSocket = joinChannel(clientSocket, ["#sebbutest", "#pornonystavat", "#otit.2016", "#olto"])
     #clientSocket = joinChannel(clientSocket, ["#sebbutest"])
 
     """
