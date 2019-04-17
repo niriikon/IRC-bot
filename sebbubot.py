@@ -10,11 +10,15 @@ from datetime import datetime, timedelta
 glVar = {}
 glVar['adminlist'] = ['sebu@sebbu.net', '~sebu@sebbu.net']
 glVar['operatorlist'] = []
+glVar['banlist'] = []
 glVar['wapputimes'] = {}
 glVar['default_url'] = 'https://c.xkcd.com/random/comic/'
 glVar['wappu_tulee'] = datetime(2019, 4, 17, 18, 0, 0)
 glVar['wapu_lopu'] = datetime(2019, 5, 2)
 glVar['juhannus_tulee'] = datetime(2019, 6, 22, 0, 0, 0)
+glVar['command_log'] = []
+glVar['COMMAND_LIMIT'] = 10
+glVar['TIME_LIMIT'] = timedelta(seconds = 30)
 glVar['BUFFER_LIMIT'] = 475
 
 
@@ -27,6 +31,8 @@ def readConfig():
     glVar['adminlist'] = parse.split(',')
     parse = config.get('USERS', 'Operatorlist')
     glVar['operatorlist'] = parse.split(',')
+    parse = config.get('USERS', 'Banlist')
+    glVar['banlist'] = parse.split(',')
 
     glVar['default_url'] = config.get('SETTINGS', 'Url')
     glVar['wappulist'] = config.get('SETTINGS', 'Wappu').split(',')
@@ -42,6 +48,7 @@ def writeConfig():
     config.add_section('USERS')
     config.set('USERS', 'Adminlist', parseList(glVar['adminlist']))
     config.set('USERS', 'Operatorlist', parseList(glVar['operatorlist']))
+    config.set('USERS', 'Banlist', parseList(glVar['banlist']))
 
     config.add_section('SETTINGS')
     config.set('SETTINGS', 'Url', glVar['default_url'])
@@ -82,6 +89,34 @@ def say(socket, message):
         if (len(msg) >= lim):
             socket.send('FLOODCHECK Writing long message\r\n'.encode('utf-8'))
             response = str(socket.recv(4096),'UTF-8', 'replace')
+
+def logCommand(response, user):
+    glVar['command_log'].append([user, datetime.now(), response[3]])
+    counter = 0
+    for item in glVar['command_log']:
+        if user == item[0]:
+            counter += 1
+
+    if counter <= glVar['COMMAND_LIMIT']:
+        return True
+    else:
+        return False
+
+def maintainLog():
+    t_now = datetime.now()
+    for i in range(len(glVar['command_log']) -1, -1, -1):
+        if glVar['command_log'][i][1] + glVar['TIME_LIMIT'] < t_now:
+            glVar['command_log'].pop(i)
+
+def clearLog():
+    glVar['command_log'] = []
+
+def banUser(user, reason='Flooding'):
+    glVar['banlist'].append(user)
+    writeConfig()
+    f = open('report.log', 'a+')
+    f.write('User {:s} banned on {}\t- Reason: {:s}\n'.format(user, datetime.now(), reason))
+    f.close()
 
 def parseList(list_in, i=0):
     list_as_string = ''
@@ -161,184 +196,186 @@ def runloop(socket):
         try:
             response = str(socket.recv(4096),'UTF-8', 'replace')
             response = response.split()
-            if (len(response) > 3):
-                message = parseList(response, 3)
-            else:
-                message = ''
+
             if response != []:
                 print('Message in:\t{}\n'.format(response))
             else:
                 print('Connection refused')
                 return None
 
-
-            user = response[0].split('!')
-            if (len(user) >= 2):
-                user_level = getLevel(user[1])
-            else:
-                user_level = 0
-                # Mainly for PING messages, also a common fallback
-
-
-            if (user_level == 2):
-                #admin commands:
-                #
-                #add operator -CHECK
-                #add admin -CHECK
-                #remove operator -CHECK
-                #remove admin -CHECK
-                #reload config -CHECK
-                #get botinfo
-
-                if (response[3] == ':!addop'):
-                    i = 4
-                    while (i < len(response)):
-                        glVar['operatorlist'].append(response[i])
-                        i += 1
-                    writeConfig()
-
-                elif (response[3] == ':!addadmin'):
-                    i = 4
-                    while (i < len(response)):
-                        glVar['adminlist'].append(response[i])
-                        i += 1
-                    writeConfig()
-
-                elif (response[3] == ':!rmop'):
-                    if (response[4].isdigit()):
-                        glVar['operatorlist'].pop(int(response[4]))
-                    else:
-                        i = 4
-                        while (i < len(response)):
-                            glVar['operatorlist'].remove(response[i])
-                            i += 1
-                    writeConfig()
-
-                elif (response[3] == ':!rmadmin'):
-                    if (response[4].isdigit()):
-                        glVar['adminlist'].pop(int(response[4]))
-                    else:
-                        i = 4
-                        while (i < len(response)):
-                            glVar['adminlist'].remove(response[i])
-                            i += 1
-                    writeConfig()
-
-                elif (response[3] == ':!setlink'):
-                    glVar['default_url'] = response[4]
-                    writeConfig()
-                    print('Default url changed: {}'.format(glVar['default_url']))
-
-                elif (response[3] == ':!teekkariwappu'):
-                    wappulist = response[4].split(',') # Format: 2017,4,20,18,0,0
-                    glVar['wappu_tulee'] = datetime(*map(int, wappulist))
-                    writeConfig()
-
-                elif (response[3] == ':!setjussi'):
-                    juhannuslist = response[4].split(',')
-                    glVar['juhannus_tulee'] = datetime(*map(int, juhannuslist))
-                    writeConfig()
-
-                elif (response[3] == ':!reload'):
-                    readConfig()
-
-
-                
-            # if (user_level >= 1):
-                #operator commands:
-                #
-                #none atm
-                
+            for i in range(len(response)):
+                response[i] = response[i].lstrip(':')
 
             #server PING message:
             if ('PING' in response):
                 socket.send('PONG {:s}\r\n'.format(response[1]).encode('utf-8'))
 
+            if (len(response) > 3):
 
-            #any_user commands:
-            #
-            #random link -CHECK
-            #wappucounter -CHECK
-            #per user -wappucounter -CHECK
-            #juhannuscounter -CHECK
-            #gibeOps -CHECK
-            #tuppi matchmaking
-            elif (response[3] == ':!help'):
-                # longtext = 'This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise). This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise).This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise).'
-                helptext = '!help - Display this message.    ### !linkplz - Request a random link from a site set by bot operators.    ### !wappu - Wappucounter. If user\'s Wappu is set, also displays that.    ### !setwappu - Set the beginning of user\'s Wappu. If no parameters are given, current time is used. Accepted time formats are \"!setwappu d.m.y\" and \"!setwappu d.m.y hh:mm:ss\", for example; \"!setwappu 1.5.2019 12:34:56\"    ### !juhannus - Juhannuscounter'
-                say(socket, 'PRIVMSG {:s} :{:s}'.format(user[0].lstrip(':'), helptext).encode('utf-8'))
-                helptext = 'Bot flooding may result in a ban. If you have been banned accidentally, please contact a bot operator or admin.'
-                say(socket, 'PRIVMSG {:s} :{:s}'.format(user[0].lstrip(':'), helptext).encode('utf-8'))
-
-            elif (response[3] == ':!linkplz'):
-                url = pasteLink(glVar['default_url'])
-                if (response[2] == username):
-                    say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(user[0].lstrip(':'), url).encode('utf-8'))
+                user = response[0].split('!')
+                if (len(user) >= 2):
+                    user_level = getLevel(user[1])
                 else:
-                    say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(response[2], url).encode('utf-8'))
+                    user_level = 0
 
-            elif (response[3] == ':!wappu'):
-                say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(response[2], getWappu()).encode('utf-8'))
-                if (user[1] in glVar['wapputimes']):
-                    wappuoutput = getUserWappu(user[1])
-                    if (wappuoutput != None):
-                        wappuoutput = '{:s}:n Wappua on kulunut {:s}'.format(user[0].lstrip(':'), wappuoutput)
-                        say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(response[2], wappuoutput).encode('utf-8'))
-                    else:
-                        wappuoutput = '{:s}:n Wappu ei ole vielä alkanut.'.format(user[0].lstrip(':'))
-                        say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(response[2], wappuoutput).encode('utf-8'))
+                if (response[2] == username):
+                    recipient = user[0]
+                else:
+                    recipient = response[2]
 
-            elif (response[3] == ':!setwappu'):
-                if (len(response) > 4):
-                    pattern = re.compile('([0-9]{1,2}[.]){2}[0-9]{4}') # pattern for date d.m.y
-                    pattern2 = re.compile('([0-9]{2}:){2}[0-9]{2}') # pattern for time hh:mm:ss
-                    print(pattern.match(response[4]))
-                    if (len(response) > 5):
-                        print(pattern2.match(response[5]))
-                        if (pattern2.match(response[5])):
-                            wapputime = response[5].split(':')
-                            wapputime = [int(wapputime[0]), int(wapputime[1]), int(wapputime[2])]
+
+                if (user_level == 2):
+                    #admin commands:
+                    #
+                    #add operator -CHECK
+                    #add admin -CHECK
+                    #remove operator -CHECK
+                    #remove admin -CHECK
+                    #reload config -CHECK
+                    #get botinfo
+
+                    print('response[3]: {}\n'.format(response[3]))
+
+                    if (response[3] == '!addop'):
+                        i = 4
+                        while (i < len(response)):
+                            glVar['operatorlist'].append(response[i])
+                            i += 1
+                        writeConfig()
+
+                    elif (response[3] == '!addadmin'):
+                        i = 4
+                        while (i < len(response)):
+                            glVar['adminlist'].append(response[i])
+                            i += 1
+                        writeConfig()
+
+                    elif (response[3] == '!rmop'):
+                        if (response[4].isdigit()):
+                            glVar['operatorlist'].pop(int(response[4]))
+                        else:
+                            i = 4
+                            while (i < len(response)):
+                                glVar['operatorlist'].remove(response[i])
+                                i += 1
+                        writeConfig()
+
+                    elif (response[3] == '!rmadmin'):
+                        if (response[4].isdigit()):
+                            glVar['adminlist'].pop(int(response[4]))
+                        else:
+                            i = 4
+                            while (i < len(response)):
+                                glVar['adminlist'].remove(response[i])
+                                i += 1
+                        writeConfig()
+
+                    elif (response[3] == '!setlink'):
+                        glVar['default_url'] = response[4]
+                        writeConfig()
+                        print('Default url changed: {}'.format(glVar['default_url']))
+
+                    elif (response[3] == '!teekkariwappu'):
+                        wappulist = response[4].split(',') # Format: 2017,4,20,18,0,0
+                        glVar['wappu_tulee'] = datetime(*map(int, wappulist))
+                        writeConfig()
+
+                    elif (response[3] == '!setjussi'):
+                        juhannuslist = response[4].split(',')
+                        glVar['juhannus_tulee'] = datetime(*map(int, juhannuslist))
+                        writeConfig()
+
+                    elif (response[3] == '!reload'):
+                        readConfig()
+
+
+                    
+                # if (user_level >= 1):
+                    #operator commands:
+                    #
+                    #none atm
+                    
+
+
+                #any_user commands:
+                #
+                #random link -CHECK
+                #wappucounter -CHECK
+                #per user -wappucounter -CHECK
+                #juhannuscounter -CHECK
+                #gibeOps -CHECK
+                #tuppi matchmaking
+                if (response[3] == '!help'):
+                    # longtext = 'This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise). This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise).This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise).'
+                    helptext = '!help - Display this message.    ### !linkplz - Request a random link from a site set by bot operators.    ### !wappu - Wappucounter. If user\'s Wappu is set, also displays that.    ### !setwappu - Set the beginning of user\'s Wappu. If no parameters are given, current time is used. Accepted time formats are \"!setwappu d.m.y\" and \"!setwappu d.m.y hh:mm:ss\", for example; \"!setwappu 1.5.2019 12:34:56\"    ### !juhannus - Juhannuscounter'
+                    say(socket, 'PRIVMSG {:s} :{:s}'.format(user[0], helptext).encode('utf-8'))
+                    helptext = 'Bot flooding may result in a ban. If you have been banned accidentally, please contact a bot operator or admin.'
+                    say(socket, 'PRIVMSG {:s} :{:s}'.format(user[0], helptext).encode('utf-8'))
+
+                elif (response[3] == '!linkplz'):
+                    url = pasteLink(glVar['default_url'])
+                    say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(recipient, url).encode('utf-8'))
+
+                elif (response[3] == '!wappu'):
+                    say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(recipient, getWappu()).encode('utf-8'))
+                    if (user[1] in glVar['wapputimes']):
+                        wappuoutput = getUserWappu(user[1])
+                        if (wappuoutput != None):
+                            wappuoutput = '{:s}:n Wappua on kulunut {:s}'.format(user[0].lstrip(':'), wappuoutput)
+                        else:
+                            wappuoutput = '{:s}:n Wappu ei ole vielä alkanut.'.format(user[0].lstrip(':'))
+                        say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(recipient, wappuoutput).encode('utf-8'))
+
+                elif (response[3] == '!setwappu'):
+                    if (len(response) > 4):
+                        pattern = re.compile('([0-9]{1,2}[.]){2}[0-9]{4}') # pattern for date d.m.y
+                        pattern2 = re.compile('([0-9]{2}:){2}[0-9]{2}') # pattern for time hh:mm:ss
+                        print(pattern.match(response[4]))
+                        if (len(response) > 5):
+                            print(pattern2.match(response[5]))
+                            if (pattern2.match(response[5])):
+                                wapputime = response[5].split(':')
+                                wapputime = [int(wapputime[0]), int(wapputime[1]), int(wapputime[2])]
+                            else:
+                                wapputime = [0, 0, 0]
                         else:
                             wapputime = [0, 0, 0]
+
+                        if (pattern.match(response[4])):
+                            wappudate = response[4].split('.')
+                            wappudate = [int(wappudate[0]), int(wappudate[1]), int(wappudate[2])]
+                            outputdict = '{:d},{:d},{:d},{:d},{:d},{:d}'.format(wappudate[2], wappudate[1], wappudate[0], wapputime[0], wapputime[1], wapputime[2])
+                            glVar['wapputimes'][user[1]] = outputdict
+                            outputstring = ':n Wappu alkoi {:d}.{:d}.{:d} {:d}:{:d}:{:d}'.format(wappudate[0], wappudate[1], wappudate[2], wapputime[0], wapputime[1], wapputime[2])
+                            say(socket, 'PRIVMSG {:s} :{:s}{:s}\r\n'.format(recipient, user[0], outputstring).encode('utf-8'))
+                            writeConfig()
+                    
                     else:
-                        wapputime = [0, 0, 0]
-
-                    if (pattern.match(response[4])):
-                        wappudate = response[4].split('.')
-                        wappudate = [int(wappudate[0]), int(wappudate[1]), int(wappudate[2])]
-                        outputdict = '{:d},{:d},{:d},{:d},{:d},{:d}'.format(wappudate[2], wappudate[1], wappudate[0], wapputime[0], wapputime[1], wapputime[2])
-                        glVar['wapputimes'][user[1]] = outputdict
-                        outputstring = ':n Wappu alkoi {:d}.{:d}.{:d} {:d}:{:d}:{:d}'.format(wappudate[0], wappudate[1], wappudate[2], wapputime[0], wapputime[1], wapputime[2])
-                        say(socket, 'PRIVMSG {:s} :{:s}{:s}\r\n'.format(response[2], user[0].lstrip(':'), outputstring).encode('utf-8'))
+                        wappudate = datetime.now()
+                        wappuoutput = '{0},{1},{2},{3},{4},{5}'.format(wappudate.year, wappudate.month, wappudate.day, wappudate.hour, wappudate.minute, wappudate.second)
+                        glVar['wapputimes'][user[1]] = wappuoutput
+                        outputstring = ':n Wappu alkoi {}.{}.{} {}:{}:{}'.format(wappudate.day, wappudate.month, wappudate.year, wappudate.hour, wappudate.minute, wappudate.second)
+                        say(socket, 'PRIVMSG {:s} :{:s}{:s}\r\n'.format(recipient, user[0], outputstring).encode('utf-8'))
                         writeConfig()
-                
-                else:
-                    wappudate = datetime.now()
-                    wappuoutput = '{0},{1},{2},{3},{4},{5}'.format(wappudate.year, wappudate.month, wappudate.day, wappudate.hour, wappudate.minute, wappudate.second)
-                    glVar['wapputimes'][user[1]] = wappuoutput
-                    outputstring = ':n Wappu alkoi {}.{}.{} {}:{}:{}'.format(wappudate.day, wappudate.month, wappudate.year, wappudate.hour, wappudate.minute, wappudate.second)
-                    say(socket, 'PRIVMSG {:s} :{:s}{:s}\r\n'.format(response[2], user[0], outputstring).encode('utf-8'))
-                    writeConfig()
 
-            elif (response[3] == ':!juhannus'):
-                say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(response[2], getJuhannus()).encode('utf-8'))
+                elif (response[3] == '!juhannus'):
+                    say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(recipient, getJuhannus()).encode('utf-8'))
 
-            elif (response[3] == ':!ops'):
-                print('Giving ops to {:s}'.format(user[0].lstrip(':')).encode('utf-8'))
-                socket.send('MODE {:s} +o {:s}\r\n'.format(response[2], user[0].lstrip(':')).encode('utf-8'))
+                elif (response[3] == '!ops'):
+                    print('Giving ops to {:s}'.format(user[0].lstrip(':')).encode('utf-8'))
+                    socket.send('MODE {:s} +o {:s}\r\n'.format(response[2], user[0].lstrip(':')).encode('utf-8'))
 
-            # Testing username and server fetching with WHOIS
-            elif (response[3] == ':!who'):
-                socket.send('WHOIS {:s}\r\n'.format(user[0].lstrip(':')).encode('utf-8'))
-                response = str(socket.recv(4096),'UTF-8', 'replace')
-                response = response.split()
-                print('User\'s {:s} connection is: {:s}!{:s}'.format(response[3], response[4], response[5]))
+                # Testing username and server fetching with WHOIS
+                elif (response[3] == '!who'):
+                    socket.send('WHOIS {:s}\r\n'.format(user[0]).encode('utf-8'))
+                    response = str(socket.recv(4096),'UTF-8', 'replace')
+                    response = response.split()
+                    print('User\'s {:s} connection is: {:s}!{:s}'.format(response[3], response[4], response[5]))
 
-                """
-                Define a function 'nickToUser' which takes socket and nickname as parameters and returns
-                user@server to be used by admin/operator/etc lists.
-                """
-
+                    """
+                    TODO: Define a function 'nickToUser' which takes socket and nickname as parameters and returns
+                    user@server to be used by admin/operator/etc lists. (Use nick in commands instead of user@server)
+                    """
 
 
         except KeyboardInterrupt:
@@ -358,7 +395,7 @@ if __name__ == '__main__':
 
     nick = 'BOTSebbu'
     username = 'BOTSebbu'
-    realname = 'Botter'
+    realname = 'Pornon ystaevae'
     hostname = 'IRC'
     servername = 'IRCnet'
     
@@ -371,7 +408,7 @@ if __name__ == '__main__':
     clientSocket.send('NICK {:s}\r\n'.format(nick).encode('utf-8'))
     clientSocket.send('USER {:s} {:s} {:s} :{:s}\r\n'.format(username, hostname, servername, realname).encode('utf-8'))
 
-    joinChannel(clientSocket, '#sebbutest')
+    joinChannel(clientSocket, '#sebbutest,#pornonystavat,#otit.kiltahuone')
 
 
     """
