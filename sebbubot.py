@@ -388,15 +388,19 @@ def runloop(socket):
 
 if __name__ == '__main__':
     
-    IPaddress = 'open.ircnet.net'
-    portNo = 6667
+    # Fetch userinfo from a separate file
+    usrinfo = configparser.ConfigParser()
+    usrinfo.read('userinfo.ini')
+
+    IPaddress = usrinfo.get('INFO', 'IPaddress')
+    portNo = int(usrinfo.get('INFO', 'portNo'))
 
 
-    nick = 'BOTSebbu'
-    username = 'BOTSebbu'
-    realname = 'BotSebbu'
-    hostname = 'IRC'
-    servername = 'IRCnet'
+    nick = usrinfo.get('INFO', 'nick')
+    username = usrinfo.get('INFO', 'username')
+    realname = usrinfo.get('INFO', 'realname')
+    hostname = usrinfo.get('INFO', 'hostname')
+    servername = usrinfo.get('INFO', 'servername')
     
 
     clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -407,7 +411,7 @@ if __name__ == '__main__':
     clientSocket.send('NICK {:s}\r\n'.format(nick).encode('utf-8'))
     clientSocket.send('USER {:s} {:s} {:s} :{:s}\r\n'.format(username, hostname, servername, realname).encode('utf-8'))
 
-    joinChannel(clientSocket, '#sebbutest')
+    joinChannel(clientSocket, usrinfo.get('INFO', 'channels'))
 
 
     """
