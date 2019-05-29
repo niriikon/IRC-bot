@@ -66,7 +66,7 @@ def writeConfig():
     configfile.close()
 
 def say(socket, message):
-    # Take message (as string.encode('utf-8')) and split payload into 510 byte chunks
+    # Take message (as string.encode('utf-8')) and split payload into 475 byte chunks
     # Send first chunk
     # Send a false command, such as BOTFLOOD
     # Send the next chunk
@@ -232,7 +232,7 @@ def runloop(socket):
                     #remove operator -CHECK
                     #remove admin -CHECK
                     #reload config -CHECK
-                    #get botinfo
+                    #get botinfo (ie. list admins/operators/etc)
 
                     print('response[3]: {}\n'.format(response[3]))
 
@@ -306,7 +306,6 @@ def runloop(socket):
                 #gibeOps -CHECK
                 #tuppi matchmaking
                 if (response[3] == '!help'):
-                    # longtext = 'This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise). This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise).This is just some really long text. This is supposed to be replaced with a help post, explaining how all the commands work. For example, when you type in \'!help\', you will be sent this entire text as query. Currently the command \'!who\' is used only for testing the fetching of user\'s connection information, based on their nick. I was surprised at how difficult it is to write a meaningless post that has to exceed a set length, which in this case 512 bytes. It is important to notice, that it is actually 512 bytes, and not 512 characters. Once the string is properly encoded, it uses either 1 or 2 bytes per character (in practise).'
                     helptext = '!help - Display this message.    ### !linkplz - Request a random link from a site set by bot operators.    ### !wappu - Wappucounter. If user\'s Wappu is set, also displays that.    ### !setwappu - Set the beginning of user\'s Wappu. If no parameters are given, current time is used. Accepted time formats are \"!setwappu d.m.y\" and \"!setwappu d.m.y hh:mm:ss\", for example; \"!setwappu 1.5.2019 12:34:56\"    ### !juhannus - Juhannuscounter'
                     say(socket, 'PRIVMSG {:s} :{:s}'.format(user[0], helptext).encode('utf-8'))
                     helptext = 'Bot flooding may result in a ban. If you have been banned accidentally, please contact a bot operator or admin.'
@@ -395,7 +394,7 @@ if __name__ == '__main__':
 
     nick = 'BOTSebbu'
     username = 'BOTSebbu'
-    realname = 'Pornon ystaevae'
+    realname = 'BotSebbu'
     hostname = 'IRC'
     servername = 'IRCnet'
     
@@ -408,7 +407,7 @@ if __name__ == '__main__':
     clientSocket.send('NICK {:s}\r\n'.format(nick).encode('utf-8'))
     clientSocket.send('USER {:s} {:s} {:s} :{:s}\r\n'.format(username, hostname, servername, realname).encode('utf-8'))
 
-    joinChannel(clientSocket, '#sebbutest,#pornonystavat,#otit.kiltahuone')
+    joinChannel(clientSocket, '#sebbutest')
 
 
     """
