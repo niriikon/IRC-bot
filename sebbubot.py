@@ -195,8 +195,14 @@ def runloop(socket):
     while True:
         try:
             response = str(socket.recv(4096),'UTF-8', 'replace')
-            whole_msg = response.split(maxsplit=3)[3]
+
+            tmp = response.split(maxsplit=3)
+            whole_msg = ''
+            if (len(tmp) > 3):
+                whole_msg = tmp[3]
+
             response = response.split()
+
 
             if response != []:
                 print('Message in:\t{}\n'.format(response))
