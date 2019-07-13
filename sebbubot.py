@@ -138,7 +138,7 @@ def getLevel(user):
         return 0
 
 def pasteLink(url):
-    req = Request(url)
+    req = Request(url, headers={ 'User-Agent': 'Mozilla/5.0' })
     res = urlopen(req)
     return res.geturl()
 
@@ -195,6 +195,7 @@ def runloop(socket):
     while True:
         try:
             response = str(socket.recv(4096),'UTF-8', 'replace')
+            whole_msg = response.split(maxsplit=3)[3]
             response = response.split()
 
             if response != []:
@@ -375,6 +376,13 @@ def runloop(socket):
                     TODO: Define a function 'nickToUser' which takes socket and nickname as parameters and returns
                     user@server to be used by admin/operator/etc lists. (Use nick in commands instead of user@server)
                     """
+
+                pattern = re.compile(r'.*<.*?> \(Location, lon: [0-9]{1,2}\.[0-9]{6}, lat: [0-9]{1,2}\.[0-9]{6}\)')
+                
+                if (pattern.match(whole_msg)):
+                    # https://www.google.com/maps/search/?api=1&query=<lat>,<lng>
+                    url = pasteLink('https://www.google.com/maps/search/?api=1&query={:s},{:s}'.format(response[8].rstrip(')'), response[6].rstrip(',')))
+                    say(socket, 'PRIVMSG {:s} :{:s}\r\n'.format(recipient, url).encode('utf-8'))
 
 
         except KeyboardInterrupt:
